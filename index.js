@@ -4,7 +4,12 @@ const http = require("http");
 const app = express();
 app.use(express.json());
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    cors: {
+      origin: "*", // Allow all origins for debugging
+      methods: ["GET", "POST"]
+    }
+  });
 
 let touchDesignerSocket = null;
 
