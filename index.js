@@ -8,7 +8,8 @@ const io = new Server(server, {
     cors: {
       origin: "*", // Allow all origins for debugging
       methods: ["GET", "POST"]
-    }
+    },
+    transports: ["websocket"]
   });
 
 let touchDesignerSocket = null;
