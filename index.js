@@ -1,56 +1,47 @@
-const { Server } = require("socket.io");
 const express = require("express");
 const http = require("http");
+const WebSocket = require("ws");
+
 const app = express();
-app.use(express.json());
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-      origin: "*", // Allow all origins for debugging
-      methods: ["GET", "POST"]
-    },
-    transports: ["websocket"]
-  });
+const wss = new WebSocket.Server({ server });
 
 let touchDesignerSocket = null;
 
-io.on("connection", (socket) => {
-    console.log('New socket connection:', socket.id);
+wss.on("connection", (ws) => {
+    console.log("New WebSocket connection");
 
-    // Identify if a TouchDesigner client connects
-    socket.on('registerTouchDesigner', () => {
-        console.log('TouchDesigner client registered:', socket.id);
-        touchDesignerSocket = socket; // Store the socket
-    });
+    ws.on("message", (message) => {
+        let data;
+        try {
+            data = JSON.parse(message);
+        } catch (error) {
+            console.error("Invalid JSON:", message);
+            return;
+        }
 
-    socket.on('loadPrompt', (msg) => {
-        console.log('loadPrompt:', msg);
+        console.log("Received message:", data);
 
-        // Send update to TouchDesigner client
-        if (touchDesignerSocket) {
-            touchDesignerSocket.emit('touchdesignerPrompt', msg);
+        if (data.type === "registerTouchDesigner") {
+            console.log("TouchDesigner client registered");
+            touchDesignerSocket = ws;
+        } else if (data.type === "loadPrompt" || data.type === "updatePrompt") {
+            if (touchDesignerSocket) {
+                touchDesignerSocket.send(JSON.stringify({ type: "touchdesignerPrompt", data: data.data }));
+            }
         }
     });
 
-    socket.on('updatePrompt', (msg) => {
-        console.log('updatePrompt:', msg);
-
-        // Send update to TouchDesigner client
-        if (touchDesignerSocket) {
-            touchDesignerSocket.emit('touchdesignerPrompt', msg);
-        }
-    });
-
-    socket.on('disconnect', () => {
-        if (socket === touchDesignerSocket) {
-            console.log('TouchDesigner client disconnected');
+    ws.on("close", () => {
+        if (ws === touchDesignerSocket) {
+            console.log("TouchDesigner client disconnected");
             touchDesignerSocket = null;
         }
     });
 });
 
 app.get("/", (req, res) => {
-    res.send("Server is up and running!");
+    res.send("WebSocket Server is running!");
 });
 
 const PORT = process.env.PORT || 4040;
