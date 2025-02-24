@@ -11,6 +11,11 @@ let touchDesignerSocket = null;
 wss.on("connection", (ws) => {
     console.log("New WebSocket connection");
 
+    ws.isAlive = true;
+    ws.on("pong", () => {
+        ws.isAlive = true; // Mark client as alive
+    });
+
     ws.on("message", (message) => {
         let data;
         try {
@@ -39,6 +44,17 @@ wss.on("connection", (ws) => {
         }
     });
 });
+
+// Ping all clients every 30 seconds to keep the connection alive
+const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+        if (!ws.isAlive) {
+            return ws.terminate(); // Close unresponsive clients
+        }
+        ws.isAlive = false;
+        ws.ping(); // Send a ping
+    });
+}, 30000);
 
 app.get("/", (req, res) => {
     res.send("WebSocket Server is running!");
